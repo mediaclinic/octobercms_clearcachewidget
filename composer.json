@@ -1,0 +1,27 @@
+{
+    "name": "romanov/clearcachewidget-plugin",
+    "type": "october-plugin",
+    "description": "Clear cache widget on dashboard",
+    "keywords": [
+        "october",
+        "cms",
+        "backend",
+        "cache",
+        "clear",
+        "plugin"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Alexander Demidov",
+            "email": "demidov@dimti.ru"
+        },
+        {
+            "name": "Alexander Romanov",
+            "homepage": "https://github.com/alserom"
+        }
+    ],
+    "require": {
+        "composer/installers": "~2.0"
+    }
+}

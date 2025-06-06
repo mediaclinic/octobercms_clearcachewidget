@@ -2,8 +2,10 @@
 
 use Backend\Classes\ReportWidgetBase;
 use Artisan;
+use File;
 use Flash;
 use Lang;
+use BackendAuth;
 
 class ClearCache extends ReportWidgetBase
 {
@@ -16,11 +18,16 @@ class ClearCache extends ReportWidgetBase
 
     protected $defaultAlias = 'romanov_clear_cache';
 
-    public function render(){
-        $this->vars['size'] = $this->getSizes();
-        $this->vars['radius'] = $this->property("radius");
-        $widget = ($this->property("nochart"))? 'widget2' : 'widget';
-        return $this->makePartial($widget);
+    public function render()
+    {
+        if(BackendAuth::userHasAccess('romanov.clearcachewidget.access')){
+
+            $this->vars['size'] = $this->getSizes();
+            $this->vars['radius'] = $this->property("radius");
+            $widget = ($this->property("nochart"))? 'widget2' : 'widget';
+            return $this->makePartial($widget);
+        }
+        return '';
     }
 
     public function defineProperties()
@@ -49,7 +56,7 @@ class ClearCache extends ReportWidgetBase
                 'type'              => 'checkbox',
                 'default'           => false,
             ],
-			'thumbspath' => [
+            'thumbspath' => [
                 'title'             => 'romanov.clearcachewidget::lang.plugin.delthumbspath',
                 'type'              => 'string',
                 'placeholder'       => self::THUMBNAILS_PATH,
@@ -91,6 +98,16 @@ class ClearCache extends ReportWidgetBase
         return $size;
     }
 
+    private function getDirSizeNotRecursive($directory) {
+        $size = 0;
+    
+        foreach (File::files($directory) as $file) {
+            $size += $file->getSize();
+        }
+    
+        return $size;
+    }
+
     private function formatSize($size) {
         $mod = 1024;
         $units = explode(' ','B KB MB GB TB PB');
@@ -101,7 +118,6 @@ class ClearCache extends ReportWidgetBase
     }
 
     private function getSizes(){
-
         $s['ccache_b']    = $this->getDirSize(storage_path() . self::CMS_CACHE_PATH);
         $s['ccache']      = $this->formatSize($s['ccache_b']);
         $s['ccombiner_b'] = $this->getDirSize(storage_path() . self::CMS_COMBINER_PATH);
@@ -110,7 +126,16 @@ class ClearCache extends ReportWidgetBase
         $s['ctwig']       = $this->formatSize($s['ctwig_b']);
         $s['fcache_b']    = $this->getDirSize(storage_path() . self::FRAMEWORK_CACHE_PATH);
         $s['fcache']      = $this->formatSize($s['fcache_b']);
-        $s['all']         = $this->formatSize($s['ccache_b'] + $s['ccombiner_b'] + $s['ctwig_b'] + $s['fcache_b']);
+        $s['tempm_b']    = $this->getDirSize(temp_path('media'));
+        $s['tempm']      = $this->formatSize($s['tempm_b']);
+        $s['tempp_b']    = $this->getDirSize(temp_path('public'));
+        $s['tempp']      = $this->formatSize($s['tempp_b']);
+        $s['tempu_b']    = $this->getDirSize(temp_path('uploads'));
+        $s['tempu']      = $this->formatSize($s['tempu_b']);
+        $s['tempf_b']    = $this->getDirSizeNotRecursive(temp_path(''));
+        $s['tempf']      = $this->formatSize($s['tempf_b']);
+        $s['all']         = $this->formatSize($s['ccache_b'] + $s['ccombiner_b'] + $s['ctwig_b'] + $s['fcache_b']
+            + $s['tempm_b'] + $s['tempp_b'] + $s['tempu_b'] + $s['tempf_b']);
         return $s;
     }
 
@@ -129,5 +154,46 @@ class ClearCache extends ReportWidgetBase
             unlink($img);
         }
     }
-
+    
+    private function delTemp(){
+        $this->removeTempAllFilesAndDirectories('media');
+    
+        $this->removeTempAllFilesAndDirectories('public');
+    
+        $this->removeTempAllFilesAndDirectories('uploads');
+    
+        $this->removeTempFiles();
+    }
+    
+    private function removeTempAllFilesAndDirectories($subDir) {
+        if ($tempUploads = temp_path($subDir)) {
+            if (File::exists(temp_path($subDir))) {
+                $allFiles = File::allFiles($tempUploads);
+    
+                foreach ($allFiles as $file) {
+                    File::delete($file);
+                }
+    
+                $allFolders = array_reverse(File::directories($tempUploads));
+    
+                foreach ($allFolders as $directory) {
+                    if (!File::allFiles($directory)) {
+                        File::deleteDirectory($directory);
+                    }
+                }
+            }
+        }
+    }
+    
+    private function removeTempFiles() {
+        if ($tempUploads = temp_path('')) {
+            if (File::exists(temp_path(''))) {
+                $files = File::files($tempUploads);
+    
+                foreach ($files as $file) {
+                    File::delete($file);
+                }
+            }
+        }
+    }
 }
